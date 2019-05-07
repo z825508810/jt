@@ -1,0 +1,148 @@
+Oracle PL/sql操作
+CVS:qcongyong/qcongyong987@
+
+数据泵操作详解：https://blog.csdn.net/zftang/article/details/6387325（可导出某用户下的特定表）
+https://www.cnblogs.com/huacw/p/3888807.html(导入某用户下的特定表)
+grant read or write on wsj_obj_name to wsj
+1. 创建directory（在sqlplus中进行创建）
+    create or replace directory wsj_obj_name as '/home/wsj';  #注意这边的/home/wsj目录oracle用户必须是属主
+2. 授权
+    grant read or write on wsj_obj_name to wsj;# 给wsj这个数据库用户赋予对wsj_obj_name这个路径（即/home/wsj）的读写权限
+
+一、创建表空间(应用一般命名为*apas,用户一般命名为*apasuser)
+   create tablespace newapas nologging datafile 'E:\oracle\product\10.2.0\oradata\orcl\newapas.ora' size 100m reuse autoextend on next 10m maxsize unlimited;
+
+
+
+启动 Oracle 的 Listener
+D:\>lsnrctl start
+select  distinct(applyfrom) from apas_info t查找某个字段的所有值
+查一条数据写入数据库的时间  select * from v$sql(#查看最近所做的操作)
+			    select * from v  $sqlarea(#查看最近所做的操作出错出错)
+
+二、创建临时表空间
+create temporary tablespace newapastemp tempfile 'E:\oracle\product\10.2.0\oradata\orcl\newapastemp.ora' size 10M;
+
+三、创建用户并分配表空间并授权，注意，用户一定要建在你刚才建的表空间上。
+CREATE USER oauser  PROFILE DEFAULT
+    IDENTIFIED BY oauserpwd DEFAULT TABLESPACE oa
+    TEMPORARY TABLESPACE TEMP
+    ACCOUNT UNLOCK;
+    
+GRANT CONNECT TO oauser WITH ADMIN OPTION;
+GRANT DBA TO oauser;
+
+GRANT RESOURCE TO oauser;
+GRANT CREATE ANY TABLE TO oauser;
+GRANT INSERT ANY TABLE TO oauser;
+GRANT SELECT ANY TABLE TO oauser;
+GRANT UPDATE ANY TABLE TO oauser;
+GRANT DELETE ANY TABLE TO oauser;
+GRANT ALTER ANY TABLE TO oauser;
+GRANT SELECT ANY SEQUENCE TO oauser;
+GRANT ALTER ANY PROCEDURE TO oauser;
+GRANT EXECUTE ANY PROCEDURE TO oauser;
+GRANT DROP ANY TABLE TO oauser;
+
+四、扩展表空间大小
+   1.更改表空间大小：
+     ALTER DATABASE DATAFILE 'D:\oracle\product\10.2.0\oradata\orcl\was.ORA' RESIZE 1g; --表空间
+     ALTER DATABASE tempfile 'D:\oracle\product\10.2.0\oradata\orcl\wastemp.ORA' RESIZE 100m; --临时表空间
+
+   2.添加数据文件到表空间(扩展的表空间文件类型为:“.dbf”)
+     alter tablespace was add datafile 'D:\oracle\product\10.2.0\oradata\orcl\was.dbf' size 1g; 
+     alter tablespace was add tempfile 'D:\oracle\product\10.2.0\oradata\orcl\wastemp.dbf' size 100m;
+
+五、删除表空间
+   drop tablespace 表空间名 including contents;
+   然后再删掉原有目录下的文件。
+
+六、导入数据
+   点运行,输入CMD，然后输入cd\(进入C盘根目录)
+   imp newapas/newapas@orcl file=E:\081617axdata\080617axnewapas.dmp full=y
+
+七、导出数据
+   点运行,输入CMD，然后输入cd\(进入C盘根目录)
+   本机:exp newapas/newapas@orcl file=E:\081617axdata\080617axnewapas.dmp 
+   远程:exp newapas/newapas@192.168.30.88_orcl file=E:\081617axdata\080617axnewapas.dmp
+
+八、登陆oracle管理后台(使用sysdba权限登陆时，用户名必须为：sys)
+   http://localhost:1158/em/
+   
+九：修改共享池的大小：
+   ALTER SYSTEM SET SHARED_POOL_SIZE = 64M;
+
+Oracle 解除记录锁定  2011-12-03 13:15:30|  分类： 数据库学习 |  标签： |字号大
+中
+小 订阅 
+1、查看数据库锁,诊断锁的来源及类型：
+SQLSELECT object_name, machine, s.sid, s.serial# 
+FROM gv$locked_object l, dba_objects o, gv$session s 
+WHERE l.object_id　= o.object_id 
+AND l.session_id = s.sid;
+alter system kill session 'sid, serial#'; 
+ALTER system kill session '23, 1647'; 
+
+ 
+select object_id,session_id,locked_mode from v$locked_object; 
+或者用以下命令： 
+select b.owner,b.object_name,l.session_id,l.locked_mode 
+from v$locked_object l, dba_objects b 
+where b.object_id=l.object_id 
+SELECT lpad(' ',decode(l.xidusn ,0,3,0))||l.oracle_username User_name, 
+o.owner,o.object_name,o.object_type,s.sid,s.serial# 
+FROM v$locked_object l,dba_objects o,v$session s 
+WHERE l.object_id=o.object_id 
+AND l.session_id=s.sid 
+ORDER BY o.object_id,xidusn DESC 
+2、找出数据库的serial#,以备杀死： 
+select t2.username,t2.sid,t2.serial#,t2.logon_time 
+from v$locked_object t1,v$session t2 
+where t1.session_id=t2.sid order by t2.logon_time; 
+3、杀死该session 
+alter system kill session 'sid,serial#' 
+用步骤2中查出来的记录，对应进该语句删除 
+
+
+PL/sql图形界面操作
+导出步骤：
+    1 tools ->export user object 选择选项，导出.sql文件。
+    2 tools ->export tables-> Oracle Export 选择选项导出.dmp文件。
+导入步骤：
+    注：导入之前最好把以前的表删除，当然导入另外数据库除外。
+    1 tools->import tables->SQL Inserts 导入.sql文件。
+    2 tools->import talbes->Oracle Import然后再导入dmp文件。
+一些说明：
+Tools->Export User Objects导出的是建表语句（包括存储结构）。
+Tools->Export Tables里面包含三种导出方式，三种方式都能导出表结构以及数据，如下：
+?Oracle Export
+?Sql Insert
+?pl/sql developer
+
+第一种是导出为.dmp的文件格式，.dmp文件是二进制的，可以跨平台，还能包含权限，效率也很不错，用得最广 。
+第二种是导出为.sql文件的，可用文本编辑器查看，通用性比较好，但效率不如第一种，适合小数据量导入导出。尤其注意的是表中不能有大字段（blob,clob,long），如果有，会提示不能导出(提示如下： table contains one or more LONG columns cannot export in sql format,user Pl/sql developer format instead)。
+第三种是导出为.pde格式的，.pde为Pl/sql developer自有的文件格式，只能用Pl/sql developer自己导入导出，不能用编辑器查看。
+
+1.system用户登陆plsql客户端 进入创建表空间
+      create tablespace tds_tde
+      datafile 'E:/ORACLE/ORADATA/ORCLTEST/tds_tde.dbf' size 600M reuse 
+      autoextend on next 10M maxsize unlimited extent management local; 
+
+       其中tds_tde即为表空间名称   'E:/ORACLE/ORADATA/ORCLTEST/tds_tde.dbf' 为数据库安装路径
+       查看表空间名称和位置：select tablespace_name,file_name from dba_data_files
+2.创建一个用户, 指定其表空间为第1 步创建的表空间
+    create user tds_tde identified by tds_tde
+    profile default
+    default tablespace tds_tde 
+    temporary tablespace temp 
+    account unlock;
+
+3. 添加dba角色 
+       创建用户后可以看到user项多了一个用户 tds_tde，编辑改用户将其角色栏中添加dba
+
+4.用户tds-tde登陆plsql客户端，导入dmp
+    用户tds-tde登陆plsql客户端，注意以Normal进入即可，点击工具、导入表 选择需要导入dmp文件，然后导入即可。
+
+
+用sql命令行删除表和数据
+http://blog.csdn.net/qq_30535701/article/details/52185416

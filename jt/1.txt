@@ -1,8 +1,5 @@
 helloword
 git is a distributed version system
 
-hhh
-3
-3
-4
-add gpl online
+成功上传文件到jit
+thanks

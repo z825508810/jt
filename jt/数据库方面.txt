@@ -1,0 +1,16 @@
+--表空间名称：GWJJ_DATA
+--用户名：jjxf_isc_test    、 jjxf
+
+CREATE TABLESPACE "GWJJ_DATA" 
+    LOGGING 
+    DATAFILE 'D:\Oracle\tablespaces\GWJJ_ORCL.DBF' SIZE 500M 
+    AUTOEXTEND 
+    ON NEXT  100M MAXSIZE UNLIMITED EXTENT MANAGEMENT LOCAL 
+    SEGMENT SPACE MANAGEMENT  AUTO ;
+
+create user jjxf_isc_test identified by jjxf default tablespace "GWJJ_DATA";
+
+grant dba to jjxf_isc_test;
+
+
+7100
